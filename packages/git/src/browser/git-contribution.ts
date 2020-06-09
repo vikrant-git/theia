@@ -14,9 +14,11 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 import { inject, injectable } from 'inversify';
+import { Emitter } from '@theia/core/lib/common/event';
 import URI from '@theia/core/lib/common/uri';
 import { Command, CommandContribution, CommandRegistry, DisposableCollection, MenuContribution, MenuModelRegistry, Mutable, MenuAction } from '@theia/core';
 import { DiffUris, Widget } from '@theia/core/lib/browser';
+import { GitDiffWidget } from './diff/git-diff-widget';
 import { TabBarToolbarContribution, TabBarToolbarRegistry, TabBarToolbarItem } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 import { EditorContextMenu, EditorManager, EditorOpenerOptions, EditorWidget } from '@theia/editor/lib/browser';
 import { Git, GitFileChange, GitFileStatus } from '../common';
@@ -33,6 +35,7 @@ import { ProgressService } from '@theia/core/lib/common/progress-service';
 import { GitPreferences } from './git-preferences';
 import { ColorContribution } from '@theia/core/lib/browser/color-application-contribution';
 import { ColorRegistry } from '@theia/core/lib/browser/color-registry';
+import { GitCommitDetailWidget } from './history/git-commit-detail-widget';
 
 export namespace GIT_COMMANDS {
     export const CLONE = {
@@ -189,6 +192,18 @@ export namespace GIT_COMMANDS {
         iconClass: 'fa fa-plus',
         category: 'Git'
     };
+    export const TREE_VIEW_MODE = {
+        id: 'git.viewmode.tree',
+        tooltip: 'Toggle to Tree View',
+        iconClass: 'codicon codicon-list-tree',
+        label: 'Toggle to Tree View',
+    };
+    export const LIST_VIEW_MODE = {
+        id: 'git.viewmode.list',
+        tooltip: 'Toggle to List View',
+        iconClass: 'codicon codicon-list-flat',
+        label: 'Toggle to List View',
+    };
 }
 
 @injectable()
@@ -207,7 +222,7 @@ export class GitContribution implements CommandContribution, MenuContribution, T
     @inject(GitRepositoryProvider) protected readonly repositoryProvider: GitRepositoryProvider;
     @inject(Git) protected readonly git: Git;
     @inject(GitErrorHandler) protected readonly gitErrorHandler: GitErrorHandler;
-    @inject(CommandRegistry) protected readonly commands: CommandRegistry;
+    @inject(CommandRegistry) protected readonly commandRegistry: CommandRegistry;
     @inject(ProgressService) protected readonly progressService: ProgressService;
     @inject(GitPreferences) protected readonly gitPreferences: GitPreferences;
 
@@ -476,6 +491,7 @@ export class GitContribution implements CommandContribution, MenuContribution, T
             isVisible: widget => this.workspaceService.opened && (!widget || widget instanceof ScmWidget) && !this.repositoryProvider.selectedRepository
         });
     }
+
     async amend(): Promise<void> {
         {
             const scmRepository = this.repositoryProvider.selectedScmRepository;
@@ -527,13 +543,13 @@ export class GitContribution implements CommandContribution, MenuContribution, T
         const registerItem = (item: Mutable<TabBarToolbarItem>) => {
             const commandId = item.command;
             const id = '__git.tabbar.toolbar.' + commandId;
-            const command = this.commands.getCommand(commandId);
-            this.commands.registerCommand({ id, iconClass: command && command.iconClass }, {
-                execute: (widget, ...args) => widget instanceof ScmWidget && this.commands.executeCommand(commandId, ...args),
-                isEnabled: (widget, ...args) => widget instanceof ScmWidget && this.commands.isEnabled(commandId, ...args),
+            const command = this.commandRegistry.getCommand(commandId);
+            this.commandRegistry.registerCommand({ id, iconClass: command && command.iconClass }, {
+                execute: (widget, ...args) => widget instanceof ScmWidget && this.commandRegistry.executeCommand(commandId, ...args),
+                isEnabled: (widget, ...args) => widget instanceof ScmWidget && this.commandRegistry.isEnabled(commandId, ...args),
                 isVisible: (widget, ...args) =>
                     widget instanceof ScmWidget &&
-                    this.commands.isVisible(commandId, ...args) &&
+                    this.commandRegistry.isVisible(commandId, ...args) &&
                     !!this.repositoryProvider.selectedRepository
             });
             item.command = id;
@@ -604,6 +620,50 @@ export class GitContribution implements CommandContribution, MenuContribution, T
             tooltip: 'Discard All Changes',
             group: '3_batch'
         });
+
+        const viewModeEmitter = new Emitter<void>();
+        /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+        const extractDiffWidget = (widget: any) => {
+            if (widget instanceof GitDiffWidget) {
+                return widget;
+            }
+        };
+        /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+        const extractCommitDetailWidget = (widget: any) => {
+            const ref = widget ? widget : this.editorManager.currentEditor;
+            if (ref instanceof GitCommitDetailWidget) {
+                return ref;
+            }
+            return undefined;
+        };
+        const registerToggleViewItem = (command: Command, mode: 'tree' | 'list') => {
+            const id = command.id;
+            const item: TabBarToolbarItem = {
+                id,
+                command: id,
+                tooltip: command.label,
+                onDidChange: viewModeEmitter.event
+            };
+            this.commandRegistry.registerCommand({ id, iconClass: command && command.iconClass }, {
+                execute: widget => {
+                    const widgetWithChanges = extractDiffWidget(widget) || extractCommitDetailWidget(widget);
+                    if (widgetWithChanges) {
+                        widgetWithChanges.viewMode = mode;
+                        viewModeEmitter.fire();
+                    }
+                },
+                isVisible: widget => {
+                    const widgetWithChanges = extractDiffWidget(widget) || extractCommitDetailWidget(widget);
+                    if (widgetWithChanges) {
+                        return widgetWithChanges.viewMode !== mode;
+                    }
+                    return false;
+                },
+            });
+            registry.registerItem(item);
+        };
+        registerToggleViewItem(GIT_COMMANDS.TREE_VIEW_MODE, 'tree');
+        registerToggleViewItem(GIT_COMMANDS.LIST_VIEW_MODE, 'list');
     }
 
     protected hasConflicts(changes: GitFileChange[]): boolean {

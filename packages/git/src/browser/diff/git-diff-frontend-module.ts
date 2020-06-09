@@ -16,10 +16,13 @@
 
 import { interfaces } from 'inversify';
 import { GitDiffContribution } from './git-diff-contribution';
-import { WidgetFactory, bindViewContribution } from '@theia/core/lib/browser';
+import { WidgetFactory, bindViewContribution, TreeModel } from '@theia/core/lib/browser';
 import { GitDiffWidget, GIT_DIFF } from './git-diff-widget';
+import { GitDiffHeaderWidget } from './git-diff-header-widget';
+import { GitDiffTreeModel } from './git-diff-tree-model';
 import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
-
+import { ScmTreeModel } from '@theia/scm/lib/browser/scm-tree-model';
+import { createScmTreeContainer } from  '@theia/scm/lib/browser/scm-frontend-module';
 import '../../../src/browser/style/diff.css';
 
 export function bindGitDiffModule(bind: interfaces.Bind): void {
@@ -27,8 +30,16 @@ export function bindGitDiffModule(bind: interfaces.Bind): void {
     bind(GitDiffWidget).toSelf();
     bind(WidgetFactory).toDynamicValue(ctx => ({
         id: GIT_DIFF,
-        createWidget: () => ctx.container.get<GitDiffWidget>(GitDiffWidget)
-    }));
+        createWidget: () => {
+            const child = createScmTreeContainer(ctx.container);
+            child.bind(TreeModel).toService(GitDiffTreeModel);
+
+            child.bind(GitDiffHeaderWidget).toSelf();
+            child.bind(GitDiffTreeModel).toSelf();
+            child.bind(ScmTreeModel).toService(GitDiffTreeModel);
+            return child.get(GitDiffWidget);
+        }
+    })).inSingletonScope();
 
     bindViewContribution(bind, GitDiffContribution);
     bind(TabBarToolbarContribution).toService(GitDiffContribution);

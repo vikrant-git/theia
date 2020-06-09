@@ -19,6 +19,7 @@ import { FrontendApplication, AbstractViewContribution } from '@theia/core/lib/b
 import { WidgetManager } from '@theia/core/lib/browser/widget-manager';
 import { injectable, inject } from 'inversify';
 import { GitDiffWidget, GIT_DIFF } from './git-diff-widget';
+import { GitDiffTreeModel } from './git-diff-tree-model';
 import { ScmService } from '@theia/scm/lib/browser/scm-service';
 import { open, OpenerService } from '@theia/core/lib/browser';
 import { NavigatorContextMenu, FileNavigatorContribution } from '@theia/navigator/lib/browser/navigator-contribution';
@@ -88,31 +89,34 @@ export class GitDiffContribution extends AbstractViewContribution<GitDiffWidget>
             isVisible: uri => !!this.findGitRepository(uri),
             isEnabled: uri => !!this.findGitRepository(uri),
             execute: async fileUri => {
-                await this.quickOpenService.chooseTagsAndBranches(
-                    async (fromRevision, toRevision) => {
-                        const uri = fileUri.toString();
-                        const fileStat = await this.fileSystem.getFileStat(uri);
-                        const options: Git.Options.Diff = {
-                            uri,
-                            range: {
-                                fromRevision
-                            }
-                        };
-                        if (fileStat) {
-                            if (fileStat.isDirectory) {
-                                this.showWidget(options);
-                            } else {
-                                const fromURI = fileUri.withScheme(GIT_RESOURCE_SCHEME).withQuery(fromRevision);
-                                const toURI = fileUri;
-                                const diffUri = DiffUris.encode(fromURI, toURI);
-                                if (diffUri) {
-                                    open(this.openerService, diffUri).catch(e => {
-                                        this.notifications.error(e.message);
-                                    });
+                const repository = this.findGitRepository(fileUri);
+                if (repository) {
+                    await this.quickOpenService.chooseTagsAndBranches(
+                        async (fromRevision, toRevision) => {
+                            const uri = fileUri.toString();
+                            const fileStat = await this.fileSystem.getFileStat(uri);
+                            const diffOptions: Git.Options.Diff = {
+                                uri,
+                                range: {
+                                    fromRevision
+                                }
+                            };
+                            if (fileStat) {
+                                if (fileStat.isDirectory) {
+                                    this.showWidget({ rootUri: repository.localUri, diffOptions });
+                                } else {
+                                    const fromURI = fileUri.withScheme(GIT_RESOURCE_SCHEME).withQuery(fromRevision);
+                                    const toURI = fileUri;
+                                    const diffUri = DiffUris.encode(fromURI, toURI);
+                                    if (diffUri) {
+                                        open(this.openerService, diffUri).catch(e => {
+                                            this.notifications.error(e.message);
+                                        });
+                                    }
                                 }
                             }
-                        }
-                    }, this.findGitRepository(fileUri));
+                        }, repository);
+                }
             }
         }));
     }
@@ -134,7 +138,7 @@ export class GitDiffContribution extends AbstractViewContribution<GitDiffWidget>
         return undefined;
     }
 
-    async showWidget(options: Git.Options.Diff): Promise<GitDiffWidget> {
+    async showWidget(options: GitDiffTreeModel.Options): Promise<GitDiffWidget> {
         const widget = await this.widget;
         await widget.setContent(options);
         return this.openView({

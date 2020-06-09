@@ -31,7 +31,7 @@ import { EditorWidget } from '@theia/editor/lib/browser';
 import { ScmProvider, ScmCommand, ScmResourceGroup, ScmAmendSupport, ScmCommit } from '@theia/scm/lib/browser/scm-provider';
 import { ScmHistoryCommit, ScmFileChange } from '@theia/scm-extra/lib/browser/scm-file-change-node';
 import { LabelProvider } from '@theia/core/lib/browser/label-provider';
-import { GitCommitDetailWidgetOptions } from './history/git-commit-detail-widget';
+import { GitCommitDetailWidgetOptions } from './history';
 
 @injectable()
 export class GitScmProviderOptions {
@@ -426,6 +426,7 @@ export class GitScmProvider implements ScmProvider {
             },
             get commitDetailOptions(): GitCommitDetailWidgetOptions {
                 return {
+                    rootUri: this.scmProvider.rootUri,
                     commitSha: gitCommit.sha,
                     commitMessage: gitCommit.summary,
                     messageBody: gitCommit.body,
