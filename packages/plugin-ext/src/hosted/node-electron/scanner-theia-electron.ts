@@ -24,7 +24,7 @@ export class TheiaPluginScannerElectron extends TheiaPluginScanner {
     getModel(plugin: PluginPackage): PluginModel {
         const result = super.getModel(plugin);
         if (result.entryPoint.frontend) {
-            result.entryPoint.frontend = path.join(plugin.packagePath, result.entryPoint.frontend);
+            result.entryPoint.frontend = path.resolve(plugin.packagePath, result.entryPoint.frontend);
         }
 
         return result;
