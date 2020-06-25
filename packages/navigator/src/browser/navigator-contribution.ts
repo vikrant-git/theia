@@ -15,6 +15,7 @@
  ********************************************************************************/
 
 import { inject, injectable, postConstruct } from 'inversify';
+import URI from '@theia/core/lib/common/uri';
 import { AbstractViewContribution } from '@theia/core/lib/browser/shell/view-contribution';
 import {
     CommonCommands,
@@ -38,7 +39,9 @@ import {
     isOSX,
     MenuModelRegistry,
     MenuPath,
-    Mutable
+    Mutable,
+    MessageService,
+    isWindows
 } from '@theia/core/lib/common';
 import {
     DidCreateNewResourceEvent,
@@ -63,6 +66,9 @@ import { NavigatorDiff, NavigatorDiffCommands } from './navigator-diff';
 import { UriSelection } from '@theia/core/lib/common/selection';
 import { DirNode } from '@theia/filesystem/lib/browser';
 import { FileNavigatorModel } from './navigator-model';
+import { ClipboardService } from '@theia/core/lib/browser/clipboard-service';
+import { SelectionService } from '@theia/core/lib/common/selection-service';
+import { UriAwareCommandHandler } from '@theia/core/lib/common/uri-command-handler';
 
 export namespace FileNavigatorCommands {
     export const REVEAL_IN_NAVIGATOR: Command = {
@@ -97,6 +103,10 @@ export namespace FileNavigatorCommands {
         id: 'workbench.files.action.focusFilesExplorer',
         category: 'File',
         label: 'Focus on Files Explorer'
+    };
+    export const COPY_RELATIVE_PATH: Command = {
+        id: 'navigator.copyRelativeFilePath',
+        label: 'Copy Relative Path'
     };
 }
 
@@ -144,6 +154,9 @@ export namespace NavigatorContextMenu {
 @injectable()
 export class FileNavigatorContribution extends AbstractViewContribution<FileNavigatorWidget> implements FrontendApplicationContribution, TabBarToolbarContribution {
 
+    @inject(ClipboardService)
+    protected readonly clipboardService: ClipboardService;
+
     @inject(CommandRegistry)
     protected readonly commandRegistry: CommandRegistry;
 
@@ -156,11 +169,17 @@ export class FileNavigatorContribution extends AbstractViewContribution<FileNavi
     @inject(MenuModelRegistry)
     protected readonly menuRegistry: MenuModelRegistry;
 
+    @inject(MessageService)
+    protected readonly messageService: MessageService;
+
     @inject(NavigatorDiff)
     protected readonly navigatorDiff: NavigatorDiff;
 
     @inject(PreferenceService)
     protected readonly preferenceService: PreferenceService;
+
+    @inject(SelectionService)
+    protected readonly selectionService: SelectionService;
 
     @inject(WorkspaceCommandContribution)
     protected readonly workspaceCommandContribution: WorkspaceCommandContribution;
@@ -302,6 +321,21 @@ export class FileNavigatorContribution extends AbstractViewContribution<FileNavi
             isEnabled: () => this.navigatorDiff.isFirstFileSelected,
             isVisible: () => this.navigatorDiff.isFirstFileSelected
         });
+
+        registry.registerCommand(FileNavigatorCommands.COPY_RELATIVE_PATH, new UriAwareCommandHandler<URI[]>(this.selectionService, {
+            isEnabled: uris => !!uris.length,
+            isVisible: uris => !!uris.length,
+            execute: async uris => {
+                const lineDelimiter = isWindows ? '\r\n' : '\n';
+                const text = uris.map((uri: URI) => {
+                    const workspaceRoot = this.workspaceService.getWorkspaceRootUri(uri);
+                    if (workspaceRoot) {
+                        return workspaceRoot.relative(uri);
+                    }
+                }).join(lineDelimiter);
+                await this.clipboardService.writeText(text);
+            }
+        }, { multi: true }));
     }
 
     protected withWidget<T>(widget: Widget | undefined = this.tryGetWidget(), cb: (navigator: FileNavigatorWidget) => T): T | false {
@@ -351,6 +385,15 @@ export class FileNavigatorContribution extends AbstractViewContribution<FileNavi
             order: 'c'
         });
         registry.registerMenuAction(NavigatorContextMenu.CLIPBOARD, {
+            commandId: FileNavigatorCommands.COPY_RELATIVE_PATH.id,
+            order: 'd',
+        });
+        registry.registerMenuAction(ShellTabBarContextMenu.COPY, {
+            commandId: FileNavigatorCommands.COPY_RELATIVE_PATH.id,
+            order: 'b'
+        });
+
+        registry.registerMenuAction(NavigatorContextMenu.CLIPBOARD, {
             commandId: FileDownloadCommands.COPY_DOWNLOAD_LINK.id,
             order: 'z'
         });
@@ -398,6 +441,7 @@ export class FileNavigatorContribution extends AbstractViewContribution<FileNavi
             commandId: NavigatorDiffCommands.COMPARE_SECOND.id,
             order: 'z'
         });
+
     }
 
     registerKeybindings(registry: KeybindingRegistry): void {

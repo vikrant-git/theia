@@ -505,7 +505,8 @@ export class CommonFrontendContribution implements FrontendApplicationContributi
         });
 
         registry.registerMenuAction(ShellTabBarContextMenu.COPY, {
-            commandId: CommonCommands.COPY_PATH.id
+            commandId: CommonCommands.COPY_PATH.id,
+            order: 'a'
         });
     }
 
