@@ -28,7 +28,7 @@ import { SelectionService } from '../common/selection-service';
 import { MessageService } from '../common/message-service';
 import { OpenerService, open } from '../browser/opener-service';
 import { ApplicationShell } from './shell/application-shell';
-import { SHELL_TABBAR_CONTEXT_MENU } from './shell/tab-bars';
+import { ShellTabBarContextMenu } from './shell/tab-bars';
 import { AboutDialog } from './about-dialog';
 import * as browser from './browser';
 import URI from '../common/uri';
@@ -457,32 +457,32 @@ export class CommonFrontendContribution implements FrontendApplicationContributi
             order: '1'
         });
 
-        registry.registerMenuAction(SHELL_TABBAR_CONTEXT_MENU, {
+        registry.registerMenuAction(ShellTabBarContextMenu.CLOSE, {
             commandId: CommonCommands.CLOSE_TAB.id,
             label: 'Close',
             order: '0'
         });
-        registry.registerMenuAction(SHELL_TABBAR_CONTEXT_MENU, {
+        registry.registerMenuAction(ShellTabBarContextMenu.CLOSE, {
             commandId: CommonCommands.CLOSE_OTHER_TABS.id,
             label: 'Close Others',
             order: '1'
         });
-        registry.registerMenuAction(SHELL_TABBAR_CONTEXT_MENU, {
+        registry.registerMenuAction(ShellTabBarContextMenu.CLOSE, {
             commandId: CommonCommands.CLOSE_RIGHT_TABS.id,
             label: 'Close to the Right',
             order: '2'
         });
-        registry.registerMenuAction(SHELL_TABBAR_CONTEXT_MENU, {
+        registry.registerMenuAction(ShellTabBarContextMenu.CLOSE, {
             commandId: CommonCommands.CLOSE_ALL_TABS.id,
             label: 'Close All',
             order: '3'
         });
-        registry.registerMenuAction(SHELL_TABBAR_CONTEXT_MENU, {
+        registry.registerMenuAction(ShellTabBarContextMenu.CLOSE, {
             commandId: CommonCommands.COLLAPSE_PANEL.id,
             label: 'Collapse',
             order: '4'
         });
-        registry.registerMenuAction(SHELL_TABBAR_CONTEXT_MENU, {
+        registry.registerMenuAction(ShellTabBarContextMenu.CLOSE, {
             commandId: CommonCommands.TOGGLE_MAXIMIZED.id,
             label: 'Toggle Maximized',
             order: '5'

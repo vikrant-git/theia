@@ -27,8 +27,8 @@ import {
     PreferenceScope,
     PreferenceService,
     SelectableTreeNode,
-    SHELL_TABBAR_CONTEXT_MENU,
-    Widget
+    Widget,
+    ShellTabBarContextMenu
 } from '@theia/core/lib/browser';
 import { FileDownloadCommands } from '@theia/filesystem/lib/browser/download/file-download-command-contribution';
 import {
@@ -313,7 +313,7 @@ export class FileNavigatorContribution extends AbstractViewContribution<FileNavi
 
     registerMenus(registry: MenuModelRegistry): void {
         super.registerMenus(registry);
-        registry.registerMenuAction(SHELL_TABBAR_CONTEXT_MENU, {
+        registry.registerMenuAction(ShellTabBarContextMenu.ACTIONS, {
             commandId: FileNavigatorCommands.REVEAL_IN_NAVIGATOR.id,
             label: FileNavigatorCommands.REVEAL_IN_NAVIGATOR.label,
             order: '5'
