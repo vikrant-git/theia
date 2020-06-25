@@ -503,6 +503,10 @@ export class CommonFrontendContribution implements FrontendApplicationContributi
         registry.registerMenuAction(CommonMenus.FILE_SETTINGS_SUBMENU_THEME, {
             commandId: CommonCommands.SELECT_ICON_THEME.id
         });
+
+        registry.registerMenuAction(ShellTabBarContextMenu.COPY, {
+            commandId: CommonCommands.COPY_PATH.id
+        });
     }
 
     registerCommands(commandRegistry: CommandRegistry): void {
@@ -537,14 +541,12 @@ export class CommonFrontendContribution implements FrontendApplicationContributi
             }
         });
         commandRegistry.registerCommand(CommonCommands.COPY_PATH, new UriAwareCommandHandler<URI[]>(this.selectionService, {
+            isEnabled: uris => !!uris.length,
+            isVisible: uris => !!uris.length,
             execute: async uris => {
-                if (uris.length) {
-                    const lineDelimiter = isWindows ? '\r\n' : '\n';
-                    const text = uris.map(resource => resource.path).join(lineDelimiter);
-                    await this.clipboardService.writeText(text);
-                } else {
-                    await this.messageService.info('Open a file first to copy its path');
-                }
+                const lineDelimiter = isWindows ? '\r\n' : '\n';
+                const text = uris.map(resource => resource.path).join(lineDelimiter);
+                await this.clipboardService.writeText(text);
             }
         }, { multi: true }));
 
