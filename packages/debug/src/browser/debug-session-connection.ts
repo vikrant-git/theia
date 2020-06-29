@@ -252,7 +252,7 @@ export class DebugSessionConnection implements Disposable {
         const handler = this.requestHandlers.get(request.command);
         if (handler) {
             try {
-                response.body = handler(request);
+                response.body = await handler(request);
             } catch (error) {
                 response.success = false;
                 response.message = error.message;
