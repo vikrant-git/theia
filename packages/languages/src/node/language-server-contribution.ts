@@ -42,11 +42,17 @@ export interface LanguageServerStartOptions {
     parameters?: any
 }
 
+/**
+ * @deprecated since 1.4.0 - use VS Code extensions to contribute language smartness
+ */
 export const LanguageServerContribution = Symbol('LanguageServerContribution');
 export interface LanguageServerContribution extends LanguageContribution {
     start(clientConnection: IConnection, options: LanguageServerStartOptions): MaybePromise<void>;
 }
 
+/**
+ * @deprecated since 1.4.0 - use VS Code extensions to contribute language smartness
+ */
 @injectable()
 export abstract class BaseLanguageServerContribution implements LanguageServerContribution {
 

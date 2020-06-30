@@ -1,3 +1,5 @@
+> Deprecated since 1.4.0 - use VS Code extensions to contribute language smartness
+
 <div align='center'>
 
 <br />
